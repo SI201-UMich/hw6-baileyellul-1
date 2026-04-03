@@ -172,18 +172,22 @@ def get_groups_above_cutoff(cutoff, cache_file):
     RETURNS:
         A dictionary {group_uuid: count} for groups with count >= cutoff only.
     """
+    
     cache = load_json(cache_file)
     counts = {}
+
+    
     for entry in cache.values():
-        try: 
-            group_id = entry['data']['relashionships']['group']['data']['id']
-            if not group_id:
-                continue
-            counts[group_id] = counts.get(group_id, 0) +1
+        try:
+            relationships = entry.get("data", {}).get("relationships", {})
+            group_id = relationships.get("group", {}).get("data", {}).get("id")
+            if group_id:
+                counts[group_id] = counts.get(group_id, 0) + 1
         except:
             continue
-    return {gid: count for gid, count in counts.items() if count >= cutoff}
 
+    
+    return {gid: count for gid, count in counts.items() if count >= cutoff}
 # Extra Credit
 def recommend_breeds_in_same_group(breed_name, cache_file):
     """
@@ -206,7 +210,36 @@ def recommend_breeds_in_same_group(breed_name, cache_file):
             "No recommendations found based on '{breed_name}'."  (no other breeds in that group)
     """
 
-
+    cache = load_json(cache_file)
+    if not cache:
+        return "No breed data found in cache"
+    target_name = None 
+    target_group = None 
+    for entry in cache.values():
+        try:
+            name = entry['data']['attributes']['name']
+            if name.lower() == breed_name.lower():
+                target_name = name 
+                target_group = entry['data']['relashionship']['group']['data']['id']
+                break
+        except:
+            continue
+    if target_name is None:
+        return f"'{breed_name}' is not in the cache"
+    if not target_group:
+        return f"No group information avaliable for '{target_name}'"
+    recommendations = []
+    for entry in cache.values():
+        try: 
+            name = entry['data']['attributes']['name']
+            group_id = entry['data']['relashionship']['group']['data']['id']
+            if group_id == target_group and name != target_name:
+                recommendations.append(name)
+        except:
+            continue
+    if not recommendations: 
+        return f"No recommendations found based on '{target_name}'."
+    return sorted(recommendations)
 class TestHomeworkDogAPI(unittest.TestCase):
     def setUp(self):
         self.test_cache_file = "test_cache_dogs.json"
